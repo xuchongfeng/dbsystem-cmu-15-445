@@ -35,5 +35,22 @@ public:
 
 private:
   // add your own member variables here
+    class Bucket {
+    public:
+        int localDepth;
+        std::map<K, V> contents;
+
+        Bucket(int depth): localDepth(depth) {}
+    };
+
+    std::vector<std::shared_ptr<Bucket>> bucketDirectory;
+    int globalDepth;
+    const size_t bucketSizeLimit;
+
+    int getBucketIndex(size_t hashKey) const;
+
+    std::shared_ptr<Bucket> getBucket(const K &key);
+
+    std::mutex mtx;
 };
 } // namespace cmudb

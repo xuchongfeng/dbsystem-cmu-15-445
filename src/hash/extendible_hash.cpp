@@ -10,14 +10,14 @@ namespace cmudb {
  * array_size: fixed array size for each bucket
  */
 template <typename K, typename V>
-ExtendibleHash<K, V>::ExtendibleHash(size_t size) {}
+ExtendibleHash<K, V>::ExtendibleHash(size_t size): bucketSizeLimit(size) {}
 
 /*
  * helper function to calculate the hashing address of input key
  */
 template <typename K, typename V>
 size_t ExtendibleHash<K, V>::HashKey(const K &key) {
-  return 0;
+  return std::hash<K>{}(key);
 }
 
 /*
@@ -26,7 +26,7 @@ size_t ExtendibleHash<K, V>::HashKey(const K &key) {
  */
 template <typename K, typename V>
 int ExtendibleHash<K, V>::GetGlobalDepth() const {
-  return 0;
+  return globalDepth;
 }
 
 /*
@@ -35,7 +35,7 @@ int ExtendibleHash<K, V>::GetGlobalDepth() const {
  */
 template <typename K, typename V>
 int ExtendibleHash<K, V>::GetLocalDepth(int bucket_id) const {
-  return 0;
+  return bucketDirectory[bucket_id]->localDepth;
 }
 
 /*
@@ -43,7 +43,7 @@ int ExtendibleHash<K, V>::GetLocalDepth(int bucket_id) const {
  */
 template <typename K, typename V>
 int ExtendibleHash<K, V>::GetNumBuckets() const {
-  return 0;
+  return static_cast<int>(bucketDirectory.size());
 }
 
 /*
@@ -51,7 +51,13 @@ int ExtendibleHash<K, V>::GetNumBuckets() const {
  */
 template <typename K, typename V>
 bool ExtendibleHash<K, V>::Find(const K &key, V &value) {
-  return false;
+        std::lock_guard<std::mutex> guard(mtx);
+        std::shared_ptr<Bucket> bucket = getBucket(key);
+        if (bucket == nullptr || bucket->contents.find(key) == bucket->contents.end())  {
+            return false;
+        }
+        value = bucket->contents[key];
+        return true;
 }
 
 /*
@@ -60,8 +66,26 @@ bool ExtendibleHash<K, V>::Find(const K &key, V &value) {
  */
 template <typename K, typename V>
 bool ExtendibleHash<K, V>::Remove(const K &key) {
-  return false;
+        std::lock_guard<std::mutex> guard(mtx);
+        std::shared_ptr<Bucket> bucket = getBucket(key);
+        if (bucket == nullptr || bucket->contents.find(key) == bucket->contents.end()) {
+            return false;
+        }
+
+        bucket->contents.erase(key);
+
+        return true;
 }
+
+    template<typename K, typename V>
+    int ExtendibleHash<K, V>::getBucketIndex(size_t hashKey) const {
+        return static_cast<int>(hashKey & ((1 << globalDepth) - 1));
+    };
+
+    template<typename K, typename V>
+    std::shared_ptr<typename ExtendibleHash<K, V>::Bucket> ExtendibleHash<K, V>::getBucket(const K& key) {
+        return bucketDirectory[getBucketIndex(HashKey(key))];
+    };
 
 /*
  * insert <key,value> entry in hash table
@@ -69,7 +93,48 @@ bool ExtendibleHash<K, V>::Remove(const K &key) {
  * global depth
  */
 template <typename K, typename V>
-void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {}
+void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
+        std::lock_guard<std::mutex> guard(mtx);
+
+        std::shared_ptr<Bucket> target = getBucket(key);
+        auto index = getBucketIndex(HashKey(key));
+        while (target->contents.size() == bucketSizeLimit) {
+            if (target->localDepth == globalDepth) {
+                auto length = bucketDirectory.size();
+                for (auto i = 0; i < length; i++) {
+                    bucketDirectory.push_back(bucketDirectory[i]);
+                }
+
+                globalDepth++;
+            }
+
+            int mask = (1 << target->localDepth);
+
+            auto a = std::make_shared<Bucket>(target->localDepth + 1);
+            auto b = std::make_shared<Bucket>(target->localDepth + 1);
+
+            for (auto item: target->contents) {
+                auto newKey = HashKey(item->first);
+                if (newKey & mask) {
+                    a->contents.insert(item);
+                } else {
+                    b->contents.insert(item);
+                }
+            }
+
+            for (auto i = 0; i < bucketDirectory.size(); i++) {
+                if (bucketDirectory[i] == target) {
+                    if (i & mask) bucketDirectory[i] = a;
+                    else bucketDirectory[i] = b;
+                }
+            }
+
+            target = getBucket(key);
+            index = getBucketIndex(HashKey(key));
+        }
+
+        bucketDirectory[index]->contents[key] = value;
+    }
 
 template class ExtendibleHash<page_id_t, Page *>;
 template class ExtendibleHash<Page *, std::list<Page *>::iterator>;

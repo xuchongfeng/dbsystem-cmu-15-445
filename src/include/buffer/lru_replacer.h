@@ -14,7 +14,8 @@
 
 namespace cmudb {
 
-template <typename T> class LRUReplacer : public Replacer<T> {
+template <typename T>
+class LRUReplacer : public Replacer<T> {
 public:
   // do not change public interface
   LRUReplacer();
@@ -31,6 +32,18 @@ public:
 
 private:
   // add your member variables here
+    std::map<T, ListNode> valueSequence;
+
+    class ListNode {
+    public:
+        ListNode(T value): value(value) {}
+        std::shared_ptr<ListNode> prev;
+        std::shared_ptr<ListNode> next;
+        T value;
+    };
+
+    std::shared_ptr<ListNode<T>> head;
+    std::shared_ptr<ListNode<T>> tail;
 };
 
 } // namespace cmudb
