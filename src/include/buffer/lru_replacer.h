@@ -32,7 +32,6 @@ public:
 
 private:
   // add your member variables here
-    std::map<T, ListNode> valueSequence;
 
     class ListNode {
     public:
@@ -42,8 +41,10 @@ private:
         T value;
     };
 
-    std::shared_ptr<ListNode<T>> head;
-    std::shared_ptr<ListNode<T>> tail;
+    std::map<T, ListNode> valueSequence;
+
+    std::shared_ptr<ListNode> head;
+    std::shared_ptr<ListNode> tail;
 };
 
 } // namespace cmudb

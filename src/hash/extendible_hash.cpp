@@ -100,8 +100,8 @@ void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
         auto index = getBucketIndex(HashKey(key));
         while (target->contents.size() == bucketSizeLimit) {
             if (target->localDepth == globalDepth) {
-                auto length = bucketDirectory.size();
-                for (auto i = 0; i < length; i++) {
+                size_t length = bucketDirectory.size();
+                for (size_t i = 0; i < length; i++) {
                     bucketDirectory.push_back(bucketDirectory[i]);
                 }
 
@@ -114,7 +114,7 @@ void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
             auto b = std::make_shared<Bucket>(target->localDepth + 1);
 
             for (auto item: target->contents) {
-                auto newKey = HashKey(item->first);
+                auto newKey = HashKey(item.first);
                 if (newKey & mask) {
                     a->contents.insert(item);
                 } else {
@@ -122,7 +122,7 @@ void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
                 }
             }
 
-            for (auto i = 0; i < bucketDirectory.size(); i++) {
+            for (size_t i = 0; i < bucketDirectory.size(); i++) {
                 if (bucketDirectory[i] == target) {
                     if (i & mask) bucketDirectory[i] = a;
                     else bucketDirectory[i] = b;

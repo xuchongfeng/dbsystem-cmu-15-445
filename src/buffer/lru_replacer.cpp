@@ -13,11 +13,10 @@ template <typename T> LRUReplacer<T>::LRUReplacer() {
 
 template <typename T>
 LRUReplacer<T>::~LRUReplacer() {
-  std::shared_ptr<ListNode<T>> cur = head;
-  std::shared_ptr<ListNode<T>> next;
+  std::shared_ptr<ListNode> cur = head;
+  std::shared_ptr<ListNode> next;
   while (cur) {
     next = head->next;
-    delete cur;
     cur = next;
   }
 }
